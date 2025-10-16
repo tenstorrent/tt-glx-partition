@@ -5,18 +5,17 @@ use crossterm::{
 };
 use ratatui::{
     backend::{Backend, CrosstermBackend},
-    layout::{Constraint, Direction, Layout, Rect, Alignment},
-    style::{Color, Modifier, Style},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    style::{Color, Style},
     text::{Line, Span},
     widgets::{
-        Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
+        Block, Borders, Padding, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState
     },
     Frame, Terminal,
 };
 use std::time::{Duration, Instant};
 use ratatui::style::Stylize;
 use std::io;
-use chrono::Local;
 
 const TT_GREEN: Color = Color::Rgb(30, 181, 125);
 
@@ -80,16 +79,6 @@ impl App {
             KeyCode::Down => self.on_down(),
             KeyCode::Left => self.on_left(),
             KeyCode::Right => self.on_right(),
-            KeyCode::PageUp => {
-                for _ in 0..5 {
-                    self.on_up();
-                }
-            }
-            KeyCode::PageDown => {
-                for _ in 0..5 {
-                    self.on_down();
-                }
-            }
             _ => {}
         }
     }
@@ -97,9 +86,8 @@ impl App {
 }
 
 fn render_header(frame: &mut Frame, area: Rect, current_time: String) {
-    let app_name = "ETH ISOLATION";
+    let app_name = env!("CARGO_PKG_NAME");
     let version = env!("CARGO_PKG_VERSION");
-    // let datetime = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
 
     // Draw a border around the whole header area
     let border_block = Block::default()
@@ -148,7 +136,7 @@ fn render_footer(frame: &mut Frame, area: Rect) {
     let inner_area = border_block.inner(area);
     frame.render_widget(border_block, area);
 
-    let footer_text = Paragraph::new("Use ↑↓←→ to scroll, PgUp/PgDown for faster scrolling, 'q' to quit")
+    let footer_text = Paragraph::new("Use ↑↓←→ to scroll, 'q' to quit")
         .style(Style::default().fg(Color::Yellow).bold())
         .alignment(Alignment::Center);
     frame.render_widget(footer_text, inner_area);
@@ -220,7 +208,14 @@ fn ui(f: &mut Frame, app: &mut App) {
     // Column 1 with scrollbar
     let col1_block = Block::default()
         .borders(Borders::ALL)
-        .title("Column 1");
+        .title(Span::styled("Galaxy Isolation Style", Style::default().fg(Color::Yellow)))
+        .fg(TT_GREEN)
+        .padding(Padding {
+            left: 1,
+            right: 1,
+            top: 1,
+            bottom: 1,
+        });
 
     let col1_paragraph = Paragraph::new(col1_content.clone())
         .block(col1_block)
@@ -228,20 +223,29 @@ fn ui(f: &mut Frame, app: &mut App) {
 
     f.render_widget(col1_paragraph, column_chunks[0]);
 
-    // Vertical scrollbar for column 1
-    let col1_vertical_scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
-        .begin_symbol(Some("↑"))
-        .end_symbol(Some("↓"));
-    f.render_stateful_widget(
-        col1_vertical_scrollbar,
-        column_chunks[0],
-        &mut app.vertical_scroll_state,
-    );
+    // // Vertical scrollbar for column 1
+    // let col1_vertical_scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
+    //     .begin_symbol(Some("*"))
+    //     .end_symbol(Some("*"))
+    //     .track_symbol(None)
+    //     .style(Style::default().fg(Color::Yellow));
+    // f.render_stateful_widget(
+    //     col1_vertical_scrollbar,
+    //     column_chunks[0],
+    //     &mut app.vertical_scroll_state,
+    // );
 
     // Column 2 with scrollbar
     let col2_block = Block::default()
         .borders(Borders::ALL)
-        .title("Column 2");
+        .title(Span::styled("Galaxy", Style::default().fg(Color::Yellow)))
+        .fg(TT_GREEN)
+        .padding(Padding {
+            left: 1,
+            right: 1,
+            top: 1,
+            bottom: 1,
+        });
 
     let col2_paragraph = Paragraph::new(col2_content.clone())
         .block(col2_block)
@@ -251,8 +255,11 @@ fn ui(f: &mut Frame, app: &mut App) {
 
     // Vertical scrollbar for column 2
     let col2_vertical_scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
-        .begin_symbol(Some("↑"))
-        .end_symbol(Some("↓"));
+        .begin_symbol(Some("*"))
+        .end_symbol(Some("*"))
+        .track_symbol(None)
+        .style(Style::default().fg(Color::Yellow));
+
     f.render_stateful_widget(
         col2_vertical_scrollbar,
         column_chunks[1],
@@ -261,8 +268,10 @@ fn ui(f: &mut Frame, app: &mut App) {
 
     // Horizontal scrollbar (shared for both columns)
     let horizontal_scrollbar = Scrollbar::new(ScrollbarOrientation::HorizontalBottom)
-        .begin_symbol(Some("←"))
-        .end_symbol(Some("→"));
+        .begin_symbol(Some("*"))
+        .end_symbol(Some("*"))
+        .track_symbol(None)
+        .style(Style::default().fg(Color::Yellow));
 
     // Create area for horizontal scrollbar that spans both columns
     let horizontal_scrollbar_area = Rect {
