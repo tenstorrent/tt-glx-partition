@@ -1,8 +1,7 @@
 [package]
 name = "tt-glx-eth-isolation"
-version = "0.1.1"
-description = "Ratatui Tutorial"
-authors = ["Samridhi Bansal <sbansal@tenstorrent.com>"]
+version = "0.1.0"
+description = "This tool is used for BH and WH Tenstorrent Galaxy devices to eth isolate chips into custom arrangements."
 license = "MIT"
 edition = "2024"
 
@@ -11,3 +10,7 @@ crossterm = "0.28.1"
 ratatui = "0.29.0"
 color-eyre = "0.6.3"
 chrono = "0.4.42"
+# TODO: use the crate.io version when its ready
+luwen = { git = "https://github.com/tenstorrent/luwen.git" }
+hex = "0.4.3"
+clap = { version = "4.5.51", features = ["derive"] }

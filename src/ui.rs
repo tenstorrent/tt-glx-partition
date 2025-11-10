@@ -155,7 +155,7 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Res
     let tick_rate = Duration::from_secs(1);
     let mut last_tick = Instant::now();
     while !app.should_quit {
-        terminal.draw(|f| ui(f, app))?;
+        terminal.draw(|f| ui_layout(f, app))?;
 
         // Handle events and timing
         let timeout = tick_rate.saturating_sub(last_tick.elapsed());
@@ -173,7 +173,7 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Res
     Ok(())
 }
 
-fn ui(f: &mut Frame, app: &mut App) {
+fn ui_layout(f: &mut Frame, app: &mut App) {
     // Main layout with header and body
     let main_chunks = Layout::default()
         .direction(Direction::Vertical)
