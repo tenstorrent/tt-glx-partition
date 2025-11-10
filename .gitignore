@@ -1,0 +1,5 @@
+# Generated build artifacts
+/target/
+
+# For library projects, add this line to ignore Cargo.lock
+Cargo.lock
