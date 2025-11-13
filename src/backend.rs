@@ -1,6 +1,6 @@
 use color_eyre::eyre::Error;
 // This file houses all the functions to access and flash the chips
-use luwen::luwen_if::{
+use luwen::api::{
     ChipImpl, chip::{Chip}
 };
 

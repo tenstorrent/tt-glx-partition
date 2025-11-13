@@ -5,7 +5,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use luwen::luwen_ref::detect_chips;
+use luwen::pci::detect_chips;
 use ratatui::{backend::CrosstermBackend, Terminal};
 
 mod backend;
