@@ -1,19 +1,17 @@
-use crossterm::{
-    event::{self, Event, KeyCode},
+use std::{
+    io,
+    time::{Duration, Instant},
 };
+
+use crossterm::event::{self, Event, KeyCode};
 use ratatui::{
-    backend::{Backend},
-    layout::{Constraint, Direction, Layout, Rect, Alignment},
-    style::{Color, Style},
-    text::{Line, Span},
-    widgets::{
-        Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
-    },
     Frame, Terminal,
+    backend::Backend,
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    style::{Color, Style, Stylize},
+    text::{Line, Span},
+    widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
 };
-use std::time::{Duration, Instant};
-use ratatui::style::Stylize;
-use std::io;
 
 const TT_GREEN: Color = Color::Rgb(30, 181, 125);
 
@@ -30,7 +28,7 @@ pub struct App {
 impl App {
     pub fn new() -> Self {
         let content_height = 100; // Simulate long content
-        let content_width = 100;  // Simulate wide content
+        let content_width = 100; // Simulate wide content
         let vertical_scroll_state = ScrollbarState::new(content_height).viewport_content_length(10);
         let horizontal_scroll_state = ScrollbarState::new(content_width).viewport_content_length(3);
         Self {
@@ -59,7 +57,9 @@ impl App {
 
     fn on_left(&mut self) {
         self.horizontal_scroll = self.horizontal_scroll.saturating_sub(1);
-        self.horizontal_scroll_state = self.horizontal_scroll_state.position(self.horizontal_scroll);
+        self.horizontal_scroll_state = self
+            .horizontal_scroll_state
+            .position(self.horizontal_scroll);
     }
 
     fn on_right(&mut self) {
@@ -67,7 +67,9 @@ impl App {
         if self.horizontal_scroll >= self.content_width {
             self.horizontal_scroll = self.content_width.saturating_sub(1);
         }
-        self.horizontal_scroll_state = self.horizontal_scroll_state.position(self.horizontal_scroll);
+        self.horizontal_scroll_state = self
+            .horizontal_scroll_state
+            .position(self.horizontal_scroll);
     }
 
     fn on_key(&mut self, key: KeyCode) {
@@ -90,7 +92,6 @@ impl App {
             _ => {}
         }
     }
-
 }
 
 fn render_header(frame: &mut Frame, area: Rect, current_time: String) {
@@ -119,20 +120,22 @@ fn render_header(frame: &mut Frame, area: Rect, current_time: String) {
     // Create three spans for version, app name, and datetime
     let version_span = Span::styled(format!(" v{version} "), Style::default().fg(Color::Yellow));
     let app_name_span = Span::styled(app_name, Style::default().fg(Color::Yellow).bold());
-    let datetime_span = Span::styled(format!(" {current_time} "), Style::default().fg(Color::Yellow));
+    let datetime_span = Span::styled(
+        format!(" {current_time} "),
+        Style::default().fg(Color::Yellow),
+    );
 
     // Place each in its own area according to the header_layout
-    let version_paragraph = Paragraph::new(Line::from(vec![version_span.clone()]))
-        .alignment(Alignment::Left);
-    let app_name_paragraph = Paragraph::new(Line::from(vec![app_name_span.clone()]))
-        .alignment(Alignment::Center);
-    let datetime_paragraph = Paragraph::new(Line::from(vec![datetime_span.clone()]))
-        .alignment(Alignment::Right);
+    let version_paragraph =
+        Paragraph::new(Line::from(vec![version_span.clone()])).alignment(Alignment::Left);
+    let app_name_paragraph =
+        Paragraph::new(Line::from(vec![app_name_span.clone()])).alignment(Alignment::Center);
+    let datetime_paragraph =
+        Paragraph::new(Line::from(vec![datetime_span.clone()])).alignment(Alignment::Right);
 
     frame.render_widget(version_paragraph, header_layout[0]);
     frame.render_widget(app_name_paragraph, header_layout[1]);
     frame.render_widget(datetime_paragraph, header_layout[2]);
-
 }
 
 fn render_footer(frame: &mut Frame, area: Rect) {
@@ -145,9 +148,10 @@ fn render_footer(frame: &mut Frame, area: Rect) {
     let inner_area = border_block.inner(area);
     frame.render_widget(border_block, area);
 
-    let footer_text = Paragraph::new("Use ↑↓←→ to scroll, PgUp/PgDown for faster scrolling, 'q' to quit")
-        .style(Style::default().fg(Color::Yellow).bold())
-        .alignment(Alignment::Center);
+    let footer_text =
+        Paragraph::new("Use ↑↓←→ to scroll, PgUp/PgDown for faster scrolling, 'q' to quit")
+            .style(Style::default().fg(Color::Yellow).bold())
+            .alignment(Alignment::Center);
     frame.render_widget(footer_text, inner_area);
 }
 
@@ -159,16 +163,15 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Res
 
         // Handle events and timing
         let timeout = tick_rate.saturating_sub(last_tick.elapsed());
-        if event::poll(timeout)? {
-            if let Event::Key(key) = event::read()? {
-                app.on_key(key.code);
-            }
+        if event::poll(timeout)?
+            && let Event::Key(key) = event::read()?
+        {
+            app.on_key(key.code);
         }
 
         if last_tick.elapsed() >= tick_rate {
             last_tick = Instant::now();
         }
-
     }
     Ok(())
 }
@@ -203,21 +206,20 @@ fn ui_layout(f: &mut Frame, app: &mut App) {
 
     // Create content for both columns (simulated long content)
     let col1_content: Vec<Line> = (0..app.content_height)
-        .map(|i| Line::from(vec![
-            Span::raw(format!("COL 1 - Line {}", i + 1))
-        ]))
+        .map(|i| Line::from(vec![Span::raw(format!("COL 1 - Line {}", i + 1))]))
         .collect();
 
     let col2_content: Vec<Line> = (0..app.content_height)
-        .map(|i| Line::from(vec![
-            Span::raw(format!("COL 2 - Line {} with some additional text to demonstrate horizontal scrolling", i + 1))
-        ]))
+        .map(|i| {
+            Line::from(vec![Span::raw(format!(
+                "COL 2 - Line {} with some additional text to demonstrate horizontal scrolling",
+                i + 1
+            ))])
+        })
         .collect();
 
     // Column 1 with scrollbar
-    let col1_block = Block::default()
-        .borders(Borders::ALL)
-        .title("Column 1");
+    let col1_block = Block::default().borders(Borders::ALL).title("Column 1");
 
     let col1_paragraph = Paragraph::new(col1_content.clone())
         .block(col1_block)
@@ -236,9 +238,7 @@ fn ui_layout(f: &mut Frame, app: &mut App) {
     );
 
     // Column 2 with scrollbar
-    let col2_block = Block::default()
-        .borders(Borders::ALL)
-        .title("Column 2");
+    let col2_block = Block::default().borders(Borders::ALL).title("Column 2");
 
     let col2_paragraph = Paragraph::new(col2_content.clone())
         .block(col2_block)
@@ -274,6 +274,4 @@ fn ui_layout(f: &mut Frame, app: &mut App) {
         horizontal_scrollbar_area,
         &mut app.horizontal_scroll_state,
     );
-
-
 }

@@ -1,8 +1,6 @@
-use color_eyre::eyre::Error;
 // This file houses all the functions to access and flash the chips
-use luwen::api::{
-    ChipImpl, chip::{Chip}
-};
+use color_eyre::eyre::{Error, Result};
+use luwen::api::{ChipImpl, chip::Chip};
 
 // Magic constants for UBB tray to PCIe bus mapping
 pub const fn wh_pcie_to_ubb_tray(c: char) -> Option<usize> {
@@ -25,7 +23,7 @@ pub const fn bh_pcie_to_ubb_tray(c: char) -> Option<usize> {
     }
 }
 
-pub const fn pcie_char_to_slot_num(c:char) -> Option<usize> {
+pub const fn pcie_char_to_slot_num(c: char) -> Option<usize> {
     match c {
         '1' => Some(0),
         '2' => Some(1),
@@ -59,11 +57,6 @@ pub fn get_ubb_device_map(devices: Vec<Chip>) -> Result<Vec<Vec<Option<Chip>>>, 
 
     Return type: [[UBB 1 Chips][UBB 2 Chips][UBB 3 Chips][UBB 4 Chips]]
     */
-    println!(
-        "{}WARNING: This script should not be run in a VM or Docker as the PCIe bus IDs may be different!!{}",
-        CmdLineColor::YELLOW,
-        CmdLineColor::ENDC
-    );
 
     let mut ubb_map = Vec::with_capacity(4);
     for _ in 0..4 {
@@ -87,21 +80,12 @@ pub fn get_ubb_device_map(devices: Vec<Chip>) -> Result<Vec<Vec<Option<Chip>>>, 
             // Put it into the correct UBB slot based on the mapping
             if dev.as_wh().is_some() {
                 // Use the WH mapping
-                let ubb_slot = wh_pcie_to_ubb_tray(bus_hex.chars().nth(0).unwrap()).unwrap();
+                let ubb_slot = wh_pcie_to_ubb_tray(bus_hex.chars().next().unwrap()).unwrap();
                 let asic_slot_num = pcie_char_to_slot_num(bus_hex.chars().nth(1).unwrap()).unwrap();
-                // println!(
-                //     "{}Mapping WH Device {} (Bus: 0x{}) to UBB Slot {}, ASIC Slot {}{}",
-                //     CmdLineColor::GREEN,
-                //     dev_num,
-                //     bus_hex,
-                //     ubb_slot,
-                //     asic_slot_num,
-                //     CmdLineColor::ENDC
-                // );
                 ubb_map[ubb_slot][asic_slot_num] = Some(dev);
             } else if dev.as_bh().is_some() {
                 // Use the BH mapping
-                let ubb_slot = bh_pcie_to_ubb_tray(bus_hex.chars().nth(0).unwrap()).unwrap();
+                let ubb_slot = bh_pcie_to_ubb_tray(bus_hex.chars().next().unwrap()).unwrap();
                 let asic_slot_num = pcie_char_to_slot_num(bus_hex.chars().nth(1).unwrap()).unwrap();
                 println!(
                     "{}Mapping BH Device {} (Bus: 0x{}) to UBB Slot {}, ASIC Slot {}{}",
@@ -125,7 +109,6 @@ pub fn get_ubb_device_map(devices: Vec<Chip>) -> Result<Vec<Vec<Option<Chip>>>, 
     }
 
     Ok(ubb_map)
-
 }
 
 pub fn flash_asic(dev: &Chip, addr: u32, data: &[u8]) -> Result<(), Error> {
@@ -156,7 +139,10 @@ pub fn flash_asic(dev: &Chip, addr: u32, data: &[u8]) -> Result<(), Error> {
         );
         Ok(())
     } else {
-        let error_msg = format!("Device is not a WH chip, cannot flash ASIC at address {:#x}", addr);
+        let error_msg = format!(
+            "Device is not a WH or BH chip, cannot flash ASIC at address {:#x}",
+            addr
+        );
         println!(
             "{}Error: {}{}",
             CmdLineColor::RED,
@@ -192,8 +178,7 @@ pub fn generate_port_disable_mask(
     [bytes[0], bytes[1], 0, 0]
 }
 
-
-pub fn isolate_ubb(ubb_num: usize, ubb_map: &Vec<Vec<Option<Chip>>>) -> Result<(), Error> {
+pub fn isolate_ubb(ubb_num: usize, ubb_map: &[Vec<Option<Chip>>]) -> Result<(), Error> {
     /*
         Given a UBB, flash all asics to disable external eth connections.
         UBB Asic port layout:
@@ -233,46 +218,54 @@ pub fn isolate_ubb(ubb_num: usize, ubb_map: &Vec<Vec<Option<Chip>>>) -> Result<(
         CmdLineColor::ENDC
     );
 
-    let ubb = &ubb_map[ubb_num-1];
+    let ubb = &ubb_map[ubb_num - 1];
     flash_asic(
         ubb[0].as_ref().unwrap(),
         ETH_PARAM_PORT_DISABLE,
-        &generate_port_disable_mask(true, true, false, false))?;
+        &generate_port_disable_mask(true, true, false, false),
+    )?;
 
     flash_asic(
         ubb[1].as_ref().unwrap(),
         ETH_PARAM_PORT_DISABLE,
-        &generate_port_disable_mask(true, false, false, false))?;
+        &generate_port_disable_mask(true, false, false, false),
+    )?;
 
     flash_asic(
         ubb[2].as_ref().unwrap(),
         ETH_PARAM_PORT_DISABLE,
-        &generate_port_disable_mask(true, false, false, false))?;
+        &generate_port_disable_mask(true, false, false, false),
+    )?;
 
     flash_asic(
         ubb[3].as_ref().unwrap(),
         ETH_PARAM_PORT_DISABLE,
-        &generate_port_disable_mask(true, false, true, false))?;
+        &generate_port_disable_mask(true, false, true, false),
+    )?;
 
     flash_asic(
         ubb[4].as_ref().unwrap(),
         ETH_PARAM_PORT_DISABLE,
-        &generate_port_disable_mask(false, true, false, true))?;
+        &generate_port_disable_mask(false, true, false, true),
+    )?;
 
     flash_asic(
         ubb[5].as_ref().unwrap(),
         ETH_PARAM_PORT_DISABLE,
-        &generate_port_disable_mask(false, false, false, true))?;
+        &generate_port_disable_mask(false, false, false, true),
+    )?;
 
     flash_asic(
         ubb[6].as_ref().unwrap(),
         ETH_PARAM_PORT_DISABLE,
-        &generate_port_disable_mask(false, false, false, true))?;
+        &generate_port_disable_mask(false, false, false, true),
+    )?;
 
     flash_asic(
         ubb[7].as_ref().unwrap(),
         ETH_PARAM_PORT_DISABLE,
-        &generate_port_disable_mask(false, false, true, true))?;
+        &generate_port_disable_mask(false, false, true, true),
+    )?;
 
     println!(
         "{}Successfully isolated UBB {}.{}",
@@ -284,7 +277,10 @@ pub fn isolate_ubb(ubb_num: usize, ubb_map: &Vec<Vec<Option<Chip>>>) -> Result<(
     Ok(())
 }
 
-pub fn set_default_ubb_eth_disables(ubb_num: usize, ubb_device_map: &Vec<Vec<Option<Chip>>>) -> Result<(), Error> {
+pub fn set_default_ubb_eth_disables(
+    ubb_num: usize,
+    ubb_device_map: &[Vec<Option<Chip>>],
+) -> Result<(), Error> {
     // reset all UBB eth disables to 0
     println!(
         "{}Setting default eth disables for UBB {}...{}",
@@ -292,15 +288,9 @@ pub fn set_default_ubb_eth_disables(ubb_num: usize, ubb_device_map: &Vec<Vec<Opt
         ubb_num,
         CmdLineColor::ENDC
     );
-    let ubb = &ubb_device_map[ubb_num-1];
-    for asic_opt in ubb.iter() {
-        if let Some(asic) = asic_opt {
-            flash_asic(
-                asic,
-                ETH_PARAM_PORT_DISABLE,
-                &[0, 0, 0, 0],
-            )?;
-        }
+    let ubb = &ubb_device_map[ubb_num - 1];
+    for asic in ubb.iter().flatten() {
+        flash_asic(asic, ETH_PARAM_PORT_DISABLE, &[0, 0, 0, 0])?;
     }
     Ok(())
 }
