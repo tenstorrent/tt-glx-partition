@@ -1,4 +1,4 @@
-# TT-GLX-ETH-ISOLATION
+# TT-GLX-PARTITION
 
 This tool is used to disable and restore the eth links in the tenstorrent galaxy systems. This allows users to cleanly partition the galaxy into easily virtualized and containerized sections.
 
