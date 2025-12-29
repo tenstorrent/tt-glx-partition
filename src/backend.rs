@@ -1,63 +1,25 @@
-// This file houses all the functions to access and flash the chips
+// SPDX-FileCopyrightText: © 2025 Tenstorrent Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+//! Hardware access + flashing helpers.
+//!
+//! This module contains the lowest-level operations used by the CLI:
+//! - Mapping detected PCIe devices into an `(UBB -> ASIC)` table
+//! - Flashing ETH port-disable masks to ASICs over SPI
+//! - Isolating/restoring UBB trays
+
+use crate::constants::{
+    CmdLineColor, ETH_PARAM_PORT_DISABLE, bh_pcie_to_ubb_tray, pcie_char_to_slot_num,
+    wh_pcie_to_ubb_tray,
+};
+use crate::graph::{EdgeToDisable, GraphCoords};
 use color_eyre::eyre::{Error, Result};
 use luwen::api::{ChipImpl, chip::Chip};
 
-// Magic constants for UBB tray to PCIe bus mapping
-pub const fn wh_pcie_to_ubb_tray(c: char) -> Option<usize> {
-    match c {
-        'c' => Some(0),
-        '8' => Some(1),
-        '0' => Some(2),
-        '4' => Some(3),
-        _ => None,
-    }
-}
-
-pub const fn bh_pcie_to_ubb_tray(c: char) -> Option<usize> {
-    match c {
-        '0' => Some(0),
-        '4' => Some(1),
-        'c' => Some(2),
-        '8' => Some(3),
-        _ => None,
-    }
-}
-
-pub const fn pcie_char_to_slot_num(c: char) -> Option<usize> {
-    match c {
-        '1' => Some(0),
-        '2' => Some(1),
-        '3' => Some(2),
-        '4' => Some(3),
-        '5' => Some(4),
-        '6' => Some(5),
-        '7' => Some(6),
-        '8' => Some(7),
-        _ => None,
-    }
-}
-// Param table addresses in the SPI relevant to tt-topology
-const ETH_PARAM_BASE_ADDR: u32 = 0x21100;
-const ETH_PARAM_PORT_DISABLE: u32 = ETH_PARAM_BASE_ADDR + (0x4) * 2;
-
-// ANSI color codes for terminal output
-pub struct CmdLineColor;
-impl CmdLineColor {
-    pub const PURPLE: &'static str = "\x1b[35m";
-    pub const RED: &'static str = "\x1b[31m";
-    pub const GREEN: &'static str = "\x1b[32m";
-    pub const YELLOW: &'static str = "\x1b[33m";
-    pub const ENDC: &'static str = "\x1b[0m";
-}
-
-pub fn get_ubb_device_map(devices: Vec<Chip>) -> Result<Vec<Vec<Option<Chip>>>, Error> {
-    /*
-    Use the pcie bus ID to map all the asics to their respective UBBs.
-    And then return these objects in a nested vector where the outer vector is UBB num - 1 and inner vector is ASIC num - 1.
-
-    Return type: [[UBB 1 Chips][UBB 2 Chips][UBB 3 Chips][UBB 4 Chips]]
-    */
-
+/// Build an `(UBB -> ASIC)` map from the PCIe bus IDs of detected chips.
+///
+/// The return value is a 4x8 table: `ubb_map[ubb_idx][asic_idx] -> Option<Chip>`.
+pub fn build_ubb_device_map(devices: Vec<Chip>) -> Result<Vec<Vec<Option<Chip>>>, Error> {
     let mut ubb_map = Vec::with_capacity(4);
     for _ in 0..4 {
         let mut inner_vec = Vec::with_capacity(8);
@@ -111,6 +73,9 @@ pub fn get_ubb_device_map(devices: Vec<Chip>) -> Result<Vec<Vec<Option<Chip>>>, 
     Ok(ubb_map)
 }
 
+/// Write `data` to `addr` on the given ASIC via SPI.
+///
+/// Supports both WH and BH chips.
 pub fn flash_asic(dev: &Chip, addr: u32, data: &[u8]) -> Result<(), Error> {
     // flash the WH ASIC, will add BH support later
     println!(
@@ -153,6 +118,10 @@ pub fn flash_asic(dev: &Chip, addr: u32, data: &[u8]) -> Result<(), Error> {
     }
 }
 
+/// Build a 4-byte ETH port-disable mask from per-port booleans.
+///
+/// The mask is encoded as a `u16` in little-endian, padded to 4 bytes to match the firmware
+/// register width expected by `ETH_PARAM_PORT_DISABLE`.
 pub fn generate_port_disable_mask(
     disable_3_0: bool,
     disable_7_4: bool,
@@ -178,39 +147,58 @@ pub fn generate_port_disable_mask(
     [bytes[0], bytes[1], 0, 0]
 }
 
+/// Convert a per-node set of disabled port ranges into a single port-disable mask.
+pub fn convert_edges_to_disable_to_port_disable_mask(
+    edge_to_disable: &EdgeToDisable,
+) -> Result<[u8; 4], Error> {
+    // Convert the edge to disable to a port disable mask
+    let mut disable_3_0 = false;
+    let mut disable_7_4 = false;
+    let mut disable_11_8 = false;
+    let mut disable_15_12 = false;
+
+    for port in &edge_to_disable.ports {
+        match *port {
+            "[3:0]" => disable_3_0 = true,
+            "[7:4]" => disable_7_4 = true,
+            "[11:8]" => disable_11_8 = true,
+            "[15:12]" => disable_15_12 = true,
+            _ => return Err(Error::msg(format!("Unknown port: {}", port))),
+        }
+    }
+
+    Ok(generate_port_disable_mask(
+        disable_3_0,
+        disable_7_4,
+        disable_11_8,
+        disable_15_12,
+    ))
+}
+
+/// Flash all requested per-node port disables into hardware.
+pub fn flash_edges_to_disable(
+    edges_to_disable: Vec<EdgeToDisable>,
+    ubb_map: &[Vec<Option<Chip>>],
+) -> Result<(), Error> {
+    for edge in edges_to_disable {
+        let mask = convert_edges_to_disable_to_port_disable_mask(&edge)?;
+        flash_asic(
+            ubb_map[edge.node.0][edge.node.1].as_ref().unwrap(),
+            ETH_PARAM_PORT_DISABLE,
+            &mask,
+        )?;
+    }
+    Ok(())
+}
+
+/// Isolate a single UBB tray by disabling the appropriate external Ethernet links.
+/// Isolating UBB means disabling the following connections on each asic:
+///
+/// asic 1: disable 3_0, 7_4            asic 5: disable 7_4, 15_12
+/// asic 2: disable 3_0                 asic 6: disable 15_12
+/// asic 3: disable 3_0                 asic 7: disable 15_12
+/// asic 4: disable 3_0, 11_8           asic 8: disable 15_12, 11_8
 pub fn isolate_ubb(ubb_num: usize, ubb_map: &[Vec<Option<Chip>>]) -> Result<(), Error> {
-    /*
-        Given a UBB, flash all asics to disable external eth connections.
-        UBB Asic port layout:
-
-            +-------[7:4]-------+
-            |                   |
-            |                   |
-        [3:0]        ASIC       [15:12]
-            |                   |
-            |                   |
-            +------[11:8]-------+
-
-        In each UBB layout, the ASICs are arranged as follows:
-
-        ASIC numbers in each UBB:
-        +-------+
-        | 1 | 5 |
-        +-------+
-        | 2 | 6 |
-        +-------+
-        | 3 | 7 |
-        +-------+
-        | 4 | 8 |
-        +-------+
-
-        Isolating UBB means disabling the following connections on each asic.
-
-        asic 1: disable 3_0, 7_4            asic 5: disable 7_4, 15_12
-        asic 2: disable 3_0                 asic 6: disable 15_12
-        asic 3: disable 3_0                 asic 7: disable 15_12
-        asic 4: disable 3_0, 11_8           asic 8: disable 15_12, 11_8
-    */
     println!(
         "{}Isolating UBB {}...{}",
         CmdLineColor::YELLOW,
@@ -277,11 +265,12 @@ pub fn isolate_ubb(ubb_num: usize, ubb_map: &[Vec<Option<Chip>>]) -> Result<(), 
     Ok(())
 }
 
+/// Restore all ASICs in a UBB tray to default Ethernet settings (no ports disabled).
+/// This is done by flashing all ASICs with a 0 port disable mask.
 pub fn set_default_ubb_eth_disables(
     ubb_num: usize,
     ubb_device_map: &[Vec<Option<Chip>>],
 ) -> Result<(), Error> {
-    // reset all UBB eth disables to 0
     println!(
         "{}Setting default eth disables for UBB {}...{}",
         CmdLineColor::YELLOW,
@@ -291,6 +280,26 @@ pub fn set_default_ubb_eth_disables(
     let ubb = &ubb_device_map[ubb_num - 1];
     for asic in ubb.iter().flatten() {
         flash_asic(asic, ETH_PARAM_PORT_DISABLE, &[0, 0, 0, 0])?;
+    }
+    Ok(())
+}
+
+/// Reset the ASICs in a UBB tray to default Ethernet settings.
+/// This is done by flashing all ASICs with a 0 port disable mask.
+pub fn reset_group_of_asics(
+    group_of_asics: Vec<GraphCoords>,
+    ubb_device_map: &[Vec<Option<Chip>>],
+) -> Result<(), Error> {
+    for coord in group_of_asics.iter() {
+        let asic = ubb_device_map[coord.0][coord.1].as_ref().unwrap();
+        flash_asic(asic, ETH_PARAM_PORT_DISABLE, &[0, 0, 0, 0])?;
+        println!(
+            "{}Restored ASIC at UBB:{}, ASIC:{}{}",
+            CmdLineColor::BLUE,
+            coord.0 + 1,
+            coord.1 + 1,
+            CmdLineColor::ENDC
+        );
     }
     Ok(())
 }

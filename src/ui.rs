@@ -1,3 +1,11 @@
+// SPDX-FileCopyrightText: © 2025 Tenstorrent Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+//! TUI (terminal UI) module.
+//!
+//! **Note:** This is currently just a placeholder / template UI. It is not yet wired up to the
+//! full isolation workflow and mostly demonstrates layout + scrolling behavior.
+
 use std::{
     io,
     time::{Duration, Instant},
@@ -15,6 +23,7 @@ use ratatui::{
 
 const TT_GREEN: Color = Color::Rgb(30, 181, 125);
 
+/// Runtime UI state for the (placeholder) TUI.
 pub struct App {
     vertical_scroll_state: ScrollbarState,
     horizontal_scroll_state: ScrollbarState,
@@ -26,6 +35,7 @@ pub struct App {
 }
 
 impl App {
+    /// Create a new UI state instance.
     pub fn new() -> Self {
         let content_height = 100; // Simulate long content
         let content_width = 100; // Simulate wide content
@@ -155,6 +165,9 @@ fn render_footer(frame: &mut Frame, area: Rect) {
     frame.render_widget(footer_text, inner_area);
 }
 
+/// Event/render loop for the placeholder TUI.
+///
+/// Exits when the user presses `q`.
 pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> {
     let tick_rate = Duration::from_secs(1);
     let mut last_tick = Instant::now();
