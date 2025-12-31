@@ -64,6 +64,9 @@ Then, clone the repo and run `cargo run -- <ARGS>` to run the program.
 
 The TOML config file defines groups of ASICs that should be isolated together. Each group must form a connected component in the Galaxy topology. 
 
+> [!NOTE]
+> All the ASICs don't need to be included in the config file, all the excluded chips will still remain connected to each other. That is their default state.
+
 Refer to the following Galaxy asic layout map when deciding the groups to isolate
 
 ```text

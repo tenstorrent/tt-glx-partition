@@ -9,12 +9,13 @@
 //! - Isolating/restoring UBB trays
 
 use crate::constants::{
-    CmdLineColor, ETH_PARAM_PORT_DISABLE, bh_pcie_to_ubb_tray, pcie_char_to_slot_num,
+    ETH_PARAM_PORT_DISABLE, bh_pcie_to_ubb_tray, pcie_char_to_slot_num,
     wh_pcie_to_ubb_tray,
 };
 use crate::graph::{EdgeToDisable, GraphCoords};
 use color_eyre::eyre::{Error, Result};
 use luwen::api::{ChipImpl, chip::Chip};
+use owo_colors::OwoColorize;
 
 /// Build an `(UBB -> ASIC)` map from the PCIe bus IDs of detected chips.
 ///
@@ -49,23 +50,10 @@ pub fn build_ubb_device_map(devices: Vec<Chip>) -> Result<Vec<Vec<Option<Chip>>>
                 // Use the BH mapping
                 let ubb_slot = bh_pcie_to_ubb_tray(bus_hex.chars().next().unwrap()).unwrap();
                 let asic_slot_num = pcie_char_to_slot_num(bus_hex.chars().nth(1).unwrap()).unwrap();
-                println!(
-                    "{}Mapping BH Device {} (Bus: 0x{}) to UBB Slot {}, ASIC Slot {}{}",
-                    CmdLineColor::GREEN,
-                    dev_num,
-                    bus_hex,
-                    ubb_slot,
-                    asic_slot_num,
-                    CmdLineColor::ENDC
-                );
+                println!("{}", format!("Mapping BH Device {} (Bus: 0x{}) to UBB Slot {}, ASIC Slot {}", dev_num, bus_hex, ubb_slot, asic_slot_num).green());
                 ubb_map[ubb_slot][asic_slot_num] = Some(dev);
             } else {
-                println!(
-                    "{}Device {} is neither WH nor BH chip, skipping...{}",
-                    CmdLineColor::RED,
-                    dev_num,
-                    CmdLineColor::ENDC
-                );
+                println!("{}", format!("Device {} is neither WH nor BH chip, skipping...", dev_num).red());
             }
         }
     }
@@ -77,43 +65,22 @@ pub fn build_ubb_device_map(devices: Vec<Chip>) -> Result<Vec<Vec<Option<Chip>>>
 ///
 /// Supports both WH and BH chips.
 pub fn flash_asic(dev: &Chip, addr: u32, data: &[u8]) -> Result<(), Error> {
-    // flash the WH ASIC, will add BH support later
-    println!(
-        "{}Flashing ASIC at address {:#x} with data: {}{}",
-        CmdLineColor::PURPLE,
-        addr,
-        hex::encode(data),
-        CmdLineColor::ENDC
-    );
+    // flash the WH and BH ASICs over SPI
+    println!("{}", format!("Flashing ASIC at address {:#x} with data: {}", addr, hex::encode(data)).magenta());
     if let Some(wh) = dev.as_wh() {
         wh.spi_write(addr, data).unwrap();
-        println!(
-            "{}Successfully flashed ASIC at address {:#x}{}",
-            CmdLineColor::GREEN,
-            addr,
-            CmdLineColor::ENDC
-        );
+        println!("{}", format!("Successfully flashed ASIC at address {:#x}", addr).green());
         Ok(())
     } else if let Some(bh) = dev.as_bh() {
         bh.spi_write(addr, data).unwrap();
-        println!(
-            "{}Successfully flashed ASIC at address {:#x}{}",
-            CmdLineColor::GREEN,
-            addr,
-            CmdLineColor::ENDC
-        );
+        println!("{}", format!("Successfully flashed ASIC at address {:#x}", addr).green());
         Ok(())
     } else {
         let error_msg = format!(
             "Device is not a WH or BH chip, cannot flash ASIC at address {:#x}",
             addr
         );
-        println!(
-            "{}Error: {}{}",
-            CmdLineColor::RED,
-            error_msg,
-            CmdLineColor::ENDC
-        );
+        println!("{}", format!("Error: {}", error_msg).red());
         Err(Error::msg(error_msg))
     }
 }
@@ -199,12 +166,7 @@ pub fn flash_edges_to_disable(
 /// asic 3: disable 3_0                 asic 7: disable 15_12
 /// asic 4: disable 3_0, 11_8           asic 8: disable 15_12, 11_8
 pub fn isolate_ubb(ubb_num: usize, ubb_map: &[Vec<Option<Chip>>]) -> Result<(), Error> {
-    println!(
-        "{}Isolating UBB {}...{}",
-        CmdLineColor::YELLOW,
-        ubb_num,
-        CmdLineColor::ENDC
-    );
+    println!("{}", format!("Isolating UBB {}...", ubb_num).yellow());
 
     let ubb = &ubb_map[ubb_num - 1];
     flash_asic(
@@ -255,12 +217,7 @@ pub fn isolate_ubb(ubb_num: usize, ubb_map: &[Vec<Option<Chip>>]) -> Result<(), 
         &generate_port_disable_mask(false, false, true, true),
     )?;
 
-    println!(
-        "{}Successfully isolated UBB {}.{}",
-        CmdLineColor::GREEN,
-        ubb_num,
-        CmdLineColor::ENDC
-    );
+    println!("{}", format!("Successfully isolated UBB {}.", ubb_num).green());
 
     Ok(())
 }
@@ -271,12 +228,7 @@ pub fn set_default_ubb_eth_disables(
     ubb_num: usize,
     ubb_device_map: &[Vec<Option<Chip>>],
 ) -> Result<(), Error> {
-    println!(
-        "{}Setting default eth disables for UBB {}...{}",
-        CmdLineColor::YELLOW,
-        ubb_num,
-        CmdLineColor::ENDC
-    );
+    println!("{}", format!("Setting default eth disables for UBB {}...", ubb_num).yellow());
     let ubb = &ubb_device_map[ubb_num - 1];
     for asic in ubb.iter().flatten() {
         flash_asic(asic, ETH_PARAM_PORT_DISABLE, &[0, 0, 0, 0])?;
@@ -293,13 +245,7 @@ pub fn reset_group_of_asics(
     for coord in group_of_asics.iter() {
         let asic = ubb_device_map[coord.0][coord.1].as_ref().unwrap();
         flash_asic(asic, ETH_PARAM_PORT_DISABLE, &[0, 0, 0, 0])?;
-        println!(
-            "{}Restored ASIC at UBB:{}, ASIC:{}{}",
-            CmdLineColor::BLUE,
-            coord.0 + 1,
-            coord.1 + 1,
-            CmdLineColor::ENDC
-        );
+        println!("{}", format!("Restored ASIC at UBB:{}, ASIC:{}", coord.0 + 1, coord.1 + 1).blue());
     }
     Ok(())
 }
