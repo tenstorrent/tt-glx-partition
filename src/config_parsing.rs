@@ -10,9 +10,9 @@
 use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::{Result, WrapErr, eyre};
+use owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
 
-use crate::constants::CmdLineColor;
 use crate::graph::GraphCoords;
 
 /// Load a TOML config from `path` and deserialize it into [`Config`].
@@ -135,11 +135,6 @@ pub fn generate_config_file(filename: Option<impl AsRef<Path>>) -> Result<()> {
 
     std::fs::write(&config_file, toml::to_string(&config)?)
         .wrap_err_with(|| format!("Failed to write config file '{}'", config_file.display()))?;
-    println!(
-        "{}Successfully created file: {}{}",
-        CmdLineColor::GREEN,
-        config_file.display(),
-        CmdLineColor::ENDC
-    );
+    println!("{}", format!("Successfully created file: {}", config_file.display()).green());
     Ok(())
 }

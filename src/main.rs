@@ -11,12 +11,14 @@
 use std::io;
 
 use clap::Parser;
-use color_eyre::eyre::Result;
+use color_eyre::eyre;
 use crossterm::{
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
+use eyre::{Error, Result};
 use luwen::pci::detect_chips;
+use owo_colors::OwoColorize;
 use ratatui::{Terminal, backend::CrosstermBackend};
 use std::str::FromStr;
 
@@ -36,13 +38,13 @@ enum ConfigMode {
 }
 
 impl FromStr for ConfigMode {
-    type Err = String;
+    type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "isolate" => Ok(ConfigMode::Isolate),
             "restore" => Ok(ConfigMode::Restore),
-            _ => Err(format!(
+            _ => Err(eyre::eyre!(
                 "Invalid mode '{}'. Must be 'isolate' or 'restore'",
                 s
             )),
@@ -97,17 +99,13 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    println!(
-        "{}WARNING: This script should not be run in a VM or Docker as the PCIe bus IDs may be different...{}",
-        constants::CmdLineColor::YELLOW,
-        constants::CmdLineColor::ENDC
-    );
+    println!("{}", "WARNING: This script should not be run in a VM or Docker as the PCIe bus IDs may be different...".yellow());
     let chips = detect_chips()
         .expect("Failed to detect PCI devices, can you see the accelerators on lspci?");
 
     // Cannot proceed if not exactly 32 chips are detected
     if chips.len() != 32 {
-        Err(color_eyre::eyre::eyre!(
+        Err(eyre::eyre!(
             "Didn't detect 32 chips, detected {} instead. - are you running in a container or VM? Maybe a UBB tray needs reseating. Exiting...",
             chips.len()
         ))?;
@@ -119,13 +117,13 @@ fn main() -> Result<()> {
 
     if let Some(config_args) = args.use_config {
         if config_args.len() != 2 {
-            return Err(color_eyre::eyre::eyre!(
+            return Err(eyre::eyre!(
                 "Expected 2 arguments for --use-config: <mode> <filename>"
             ));
         }
         let mode_str = &config_args[0];
         let config_path = &config_args[1];
-        let mode = ConfigMode::from_str(mode_str).map_err(|e| color_eyre::eyre::eyre!("{}", e))?;
+        let mode = ConfigMode::from_str(mode_str)?;
         let config = config_parsing::load_config_from_file(config_path)?;
         let graph_group_coords = config.groups_to_graph_coords()?;
 
@@ -144,11 +142,7 @@ fn main() -> Result<()> {
                 for group in graph_group_coords.iter() {
                     backend::reset_group_of_asics(group.clone(), &ubb_device_map)?;
                 }
-                println!(
-                    "{}Flashed default ETH port disables. Please run `tt-smi -glx_reset` to apply changes.{}",
-                    constants::CmdLineColor::YELLOW,
-                    constants::CmdLineColor::ENDC
-                );
+                println!("{}", "Flashed default ETH port disables. Please run `tt-smi -glx_reset` to apply changes.".yellow());
             }
         }
         return Ok(());
@@ -158,58 +152,30 @@ fn main() -> Result<()> {
         for ubb_num in 1..ubb_device_map.len() + 1 {
             backend::isolate_ubb(ubb_num, &ubb_device_map)?;
         }
-        println!(
-            "{}Please run `tt-smi -glx_reset` to apply changes.{}",
-            constants::CmdLineColor::YELLOW,
-            constants::CmdLineColor::ENDC
-        );
+        println!("{}", "Please run `tt-smi -glx_reset` to apply changes.".yellow());
     }
     if let Some(ubb_num) = args.isolate_tray {
         if ubb_num > ubb_device_map.len() || ubb_num < 1 {
-            println!(
-                "{}Invalid UBB number: {}. Valid range: 1-{}{}",
-                constants::CmdLineColor::RED,
-                ubb_num,
-                ubb_device_map.len(),
-                constants::CmdLineColor::ENDC
-            );
+            println!("{}", format!("Invalid UBB number: {}. Valid range: 1-{}", ubb_num, ubb_device_map.len()).red());
             return Ok(());
         }
         backend::isolate_ubb(ubb_num, &ubb_device_map)?;
-        println!(
-            "{}Please run `tt-smi -glx_reset` to apply changes.{}",
-            constants::CmdLineColor::YELLOW,
-            constants::CmdLineColor::ENDC
-        );
+        println!("{}", "Please run `tt-smi -glx_reset` to apply changes.".yellow());
     }
     // Restoration Options
     if args.restore_all {
         for ubb_num in 1..ubb_device_map.len() + 1 {
             backend::set_default_ubb_eth_disables(ubb_num, &ubb_device_map)?;
         }
-        println!(
-            "{}Please run `tt-smi -glx_reset` to apply changes.{}",
-            constants::CmdLineColor::YELLOW,
-            constants::CmdLineColor::ENDC
-        );
+        println!("{}", "Please run `tt-smi -glx_reset` to apply changes.".yellow());
     }
     if let Some(ubb_num) = args.restore_tray {
         if ubb_num > ubb_device_map.len() || ubb_num < 1 {
-            println!(
-                "{}Invalid UBB number: {}. Valid range: 1-{}{}",
-                constants::CmdLineColor::RED,
-                ubb_num,
-                ubb_device_map.len(),
-                constants::CmdLineColor::ENDC
-            );
+            println!("{}", format!("Invalid UBB number: {}. Valid range: 1-{}", ubb_num, ubb_device_map.len()).red());
             return Ok(());
         }
         backend::set_default_ubb_eth_disables(ubb_num, &ubb_device_map)?;
-        println!(
-            "{}Please run `tt-smi -glx_reset` to apply changes.{}",
-            constants::CmdLineColor::YELLOW,
-            constants::CmdLineColor::ENDC
-        );
+        println!("{}", "Please run `tt-smi -glx_reset` to apply changes.".yellow());
     }
     // GUI is work in progress hence not true by default.
     // Currently just a template to build upon.

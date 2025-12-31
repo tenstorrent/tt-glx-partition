@@ -4,24 +4,12 @@
 //! Constants and topology tables.
 //!
 //! This module contains:
-//! - Terminal color escape codes (`CmdLineColor`)
 //! - The fixed galaxy topology (`UBB_GRAPH_EDGES`)
 //! - PCIe bus-id decoding helpers for mapping chips into UBB/ASIC positions
 //! - SPI register addresses used for Ethernet port disable programming
 
 use crate::graph::Edges;
 use crate::graph::GraphCoords;
-
-/// ANSI color escape codes for terminal output.
-pub struct CmdLineColor;
-impl CmdLineColor {
-    pub const PURPLE: &'static str = "\x1b[35m";
-    pub const RED: &'static str = "\x1b[31m";
-    pub const GREEN: &'static str = "\x1b[32m";
-    pub const YELLOW: &'static str = "\x1b[33m";
-    pub const BLUE: &'static str = "\x1b[34m";
-    pub const ENDC: &'static str = "\x1b[0m";
-}
 
 /// Edge list defining the full galaxy topology.
 ///
