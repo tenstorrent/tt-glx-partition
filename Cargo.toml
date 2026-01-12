@@ -2,8 +2,8 @@
 name = "tt-glx-eth-isolation"
 version = "0.1.0"
 description = "This tool is used for BH and WH Tenstorrent Galaxy devices to eth isolate chips into custom arrangements."
-license = "MIT"
-edition = "2024"
+license = "Apache-2.0"
+edition = "2021"
 
 [dependencies]
 crossterm = "0.28.1"

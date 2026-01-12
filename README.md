@@ -1,6 +1,6 @@
 # TT-GLX-PARTITION
 
-This tool is used to disable and restore the eth links in the tenstorrent galaxy systems. This allows users to cleanly partition the galaxy into easily virtualized and containerized sections.
+This tool is used to disable and restore the Ethernet links in Tenstorrent Galaxy systems. This allows users to cleanly partition the Galaxy into easily virtualized and containerized sections.
 
 ## Overview
 
@@ -21,7 +21,7 @@ The tool provides various ways to isolate or restore Ethernet connectivity betwe
 
 ## Installation
 
-If rust is not installed on your system, please run the following:
+If Rust is not installed on your system, please run the following:
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source "$HOME/.cargo/env"
@@ -64,7 +64,7 @@ Then, clone the repo and run `cargo run -- <ARGS>` to run the program.
 
 The TOML config file defines groups of ASICs that should be isolated together. Each group must form a connected component in the Galaxy topology. 
 
-Refer to the following Galaxy asic layout map when deciding the groups to isolate
+Refer to the following Galaxy ASIC layout map when deciding the groups to isolate:
 
 ```text
   UBB 1         UBB 2
@@ -235,6 +235,14 @@ Once connectivity is validated, the tool calculates which ports must be disabled
 1. For each ASIC in the selected group, examine all its neighbors
 2. If a neighbor is **outside** the selected group, the connecting port on the selected ASIC is marked for disabling
 3. This ensures the group is isolated from the rest of the system while maintaining internal connectivity
+
+## Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on how to contribute to this project.
+
+## Security
+
+If you discover a security vulnerability, please see our [Security Policy](./SECURITY.md) for instructions on how to report it responsibly.
 
 ## License
 
