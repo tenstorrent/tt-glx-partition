@@ -20,7 +20,7 @@ The TT-GLX-PARTITION team takes security vulnerabilities seriously. We appreciat
 
 Instead, please report security vulnerabilities by emailing the security team at:
 
-**[security@tenstorrent.com]** (or the appropriate security contact for your organization)
+**ospo@tenstorrent.com**
 
 Include the following information in your report:
 
