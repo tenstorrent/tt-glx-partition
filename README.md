@@ -236,6 +236,16 @@ Once connectivity is validated, the tool calculates which ports must be disabled
 2. If a neighbor is **outside** the selected group, the connecting port on the selected ASIC is marked for disabling
 3. This ensures the group is isolated from the rest of the system while maintaining internal connectivity
 
+## Getting Help
+
+If you need help or have questions about using this tool:
+
+1. **Check the documentation**: Review this README, especially the [Usage Examples](#usage-examples) and [Config File Format](#config-file-format) sections
+2. **Search existing issues**: Your question may already be answered in [closed issues](https://github.com/tenstorrent/tt-glx-partition/issues?q=is%3Aissue)
+3. **Ask a question**: Open a new issue using our [question template](https://github.com/tenstorrent/tt-glx-partition/issues/new?template=question.md)
+
+The development team monitors this repository [DEVELOPERS CHECK THIS OFTEN] and will respond to questions and issues as quickly as possible.
+
 ## Contributing
 
 We welcome contributions! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on how to contribute to this project.
