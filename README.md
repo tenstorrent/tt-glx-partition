@@ -244,7 +244,7 @@ If you need help or have questions about using this tool:
 2. **Search existing issues**: Your question may already be answered in [closed issues](https://github.com/tenstorrent/tt-glx-partition/issues?q=is%3Aissue)
 3. **Ask a question**: Open a new issue using our [question template](https://github.com/tenstorrent/tt-glx-partition/issues/new?template=question.md)
 
-The development team monitors this repository [DEVELOPERS CHECK THIS OFTEN] and will respond to questions and issues as quickly as possible.
+The development team monitors this repository weekly and will respond to questions and issues as quickly as possible.
 
 ## Contributing
 
