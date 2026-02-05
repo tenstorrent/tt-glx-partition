@@ -81,7 +81,7 @@ Enhancement suggestions are tracked as GitHub issues. When creating an enhanceme
 
 2. **Clone the repository**:
    ```bash
-   git clone https://github.com/tenstorrent/tt-glx-partition.git
+   git clone https://github.com/yourusername/tt-glx-partition.git
    cd tt-glx-partition
    ```
 
